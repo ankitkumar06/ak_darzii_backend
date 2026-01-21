@@ -7,7 +7,7 @@ const errorLogSchema = new mongoose.Schema({
   },
   errorMessage: {
     type: String,
-    required: true
+    default: 'No error message provided'
   },
   errorStack: {
     type: String,

@@ -30,11 +30,18 @@ const userSchema = new mongoose.Schema({
   addresses: [
     {
       id: String,
+      fullName: String,
+      phone: String,
       street: String,
       city: String,
       state: String,
       zipCode: String,
       country: String,
+      type: {
+        type: String,
+        enum: ['home', 'work', 'other'],
+        default: 'home'
+      },
       isDefault: Boolean
     }
   ],

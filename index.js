@@ -32,64 +32,19 @@ optionsSuccessStatus:200,
 
 app.use(cors(corsOpts));
 
-
-
-var productRouter = require('./routes/product.routes');
-var authRouter = require('./routes/auth.routes');
-
-
-
-app.use(express.json());
+// Increase payload limit for image uploads
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
  mongo.connection();
  app.listen(5000, () => console.log(`Server listening on 5000`));
 
+ var productRouter = require('./routes/product.routes');
+ var authRouter = require('./routes/auth.routes');
+ var bookmarkRouter = require('./routes/bookmark.routes');
 
  app.use('/auth',authRouter);
  app.use('/products',productRouter);
+ app.use('/bookmark',bookmarkRouter);
 
 
-// /* Routes */
-
-// // GET /api/products
-// // optional query: category, q (search)
-// app.get('/api/products', async (req, res) => {
-//   const { category, q } = req.query;
-//   const filter = {};
-//   if (category && category !== 'all') filter.category = category;
-//   if (q) filter.$or = [
-//     { name: new RegExp(q, 'i') },
-//     { description: new RegExp(q, 'i') },
-//     { fullDescription: new RegExp(q, 'i') }
-//   ];
-//   const products = await Product.find(filter).sort({ id: 1 });
-//   res.json(products);
-// });
-
-// // GET /api/products/:id
-// app.get('/api/products/:id', async (req, res) => {
-//   const product = await Product.findOne({ id: Number(req.params.id) });
-//   if (!product) return res.status(404).json({ message: 'Product not found' });
-//   res.json(product);
-// });
-
-// // GET /api/categories
-// app.get('/api/categories', async (req, res) => {
-//   const cats = await Product.distinct('category');
-//   res.json(cats.filter(Boolean));
-// });
-
-// // POST /api/orders
-// app.post('/api/orders', async (req, res) => {
-//   try {
-//     const { items, subtotal, shipping, tax, total, customer } = req.body;
-//     const order = new Order({ items, subtotal, shipping, tax, total, customer });
-//     await order.save();
-//     res.status(201).json({ message: 'Order placed', orderId: order._id });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: 'Failed to place order' });
-//   }
-// });
-
-// app.listen(PORT, () => console.log(`Server listening on ${PORT}`));

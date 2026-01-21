@@ -1,8 +1,18 @@
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { sendForgotPasswordEmail, sendPasswordResetSuccessEmail } = require('../utils/emailService');
 const { logErrorToDatabase, getErrorDetails } = require('../utils/errorLogger');
+
+// Generate JWT Token
+const generateToken = (userId) => {
+  return jwt.sign(
+    { id: userId },
+    process.env.JWT_SECRET || 'your-secret-key-change-in-env',
+    { expiresIn: '7d' }
+  );
+};
 
 // Sign Up
 exports.signup = async(req,res,next)=>{
@@ -46,14 +56,21 @@ exports.signup = async(req,res,next)=>{
 
     await user.save();
 
+    // Generate JWT token
+    const token = generateToken(user._id);
+
     res.status(201).json({
       success: true,
       message: 'Account created successfully!',
+      token,
       user: {
         id: user._id,
         name: user.name,
         phone: user.phone,
-        email: user.email
+        email: user.email,
+        profileImage: user.profileImage,
+        addresses: user.addresses || [],
+        primaryAddressId: user.primaryAddressId
       }
     });
   } catch (error) {
@@ -92,9 +109,13 @@ exports.signin = async(req,res,next)=>{
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
+    // Generate JWT token
+    const token = generateToken(user._id);
+
     res.status(200).json({
       success: true,
       message: 'Logged in successfully!',
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -275,4 +296,345 @@ exports.verifyResetToken = async (req, res) => {
   }
 }
 
+// Update Address
+exports.updateAddress = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { addressId, fullName, phone, street, city, state, zipCode, country, type } = req.body;
+
+    // Validation
+    if (!addressId || !fullName || !phone || !street || !city || !state || !zipCode || !country) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    // Find user and update address
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Find the address to update
+    const addressIndex = user.addresses.findIndex(addr => addr.id === addressId);
+    if (addressIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    // Update the address
+    user.addresses[addressIndex] = {
+      ...user.addresses[addressIndex],
+      fullName,
+      phone,
+      street,
+      city,
+      state,
+      zipCode,
+      country,
+      type: type || 'home'
+    };
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Address updated successfully!',
+      address: user.addresses[addressIndex]
+    });
+  } catch (error) {
+    console.error('Update address error:', error);
+    await logErrorToDatabase({
+      errorType: 'Update Address Error',
+      ...getErrorDetails(error, null, {
+        userId: req?.params?.userId || null,
+        severity: 'medium'
+      })
+    });
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Set Primary Address
+exports.setPrimaryAddress = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { addressId } = req.body;
+
+    // Validation
+    if (!addressId) {
+      return res.status(400).json({ success: false, message: 'Address ID is required' });
+    }
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check if address exists
+    const addressExists = user.addresses.some(addr => addr.id === addressId);
+    if (!addressExists) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    // Update all addresses: set isDefault to true only for the selected address
+    user.addresses = user.addresses.map(addr => ({
+      ...addr,
+      isDefault: addr.id === addressId
+    }));
+
+    user.primaryAddressId = addressId;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Primary address updated successfully!',
+      addresses: user.addresses,
+      primaryAddressId: user.primaryAddressId
+    });
+  } catch (error) {
+    console.error('Set primary address error:', error);
+    await logErrorToDatabase({
+      errorType: 'Set Primary Address Error',
+      ...getErrorDetails(error, null, {
+        userId: req?.params?.userId || null,
+        severity: 'medium'
+      })
+    });
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Get User Profile
+exports.getUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        profileImage: user.profileImage,
+        addresses: user.addresses || [],
+        primaryAddressId: user.primaryAddressId
+      }
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    await logErrorToDatabase({
+      errorType: 'Get Profile Error',
+      ...getErrorDetails(error, null, {
+        userId: req?.params?.userId || null,
+        severity: 'medium'
+      })
+    });
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Add Address
+exports.addAddress = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { fullName, phone, street, city, state, zipCode, country, type } = req.body;
+
+    // Validation
+    if (!fullName || !phone || !street || !city || !state || !zipCode || !country) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Create new address
+    const newAddress = {
+      id: Date.now().toString(),
+      fullName,
+      phone,
+      street,
+      city,
+      state,
+      zipCode,
+      country,
+      type: type || 'home',
+      isDefault: user.addresses.length === 0
+    };
+
+    user.addresses.push(newAddress);
+
+    // Set as primary if it's the first address
+    if (newAddress.isDefault) {
+      user.primaryAddressId = newAddress.id;
+    }
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Address added successfully!',
+      address: newAddress
+    });
+  } catch (error) {
+    console.error('Add address error:', error);
+    await logErrorToDatabase({
+      errorType: 'Add Address Error',
+      ...getErrorDetails(error, null, {
+        userId: req?.params?.userId || null,
+        severity: 'medium'
+      })
+    });
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Delete Address
+exports.deleteAddress = async (req, res) => {
+  try {
+    const { userId, addressId } = req.params;
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check if address exists
+    const addressIndex = user.addresses.findIndex(addr => addr._id.toString() === addressId);
+    if (addressIndex === -1) {
+      return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    const deletedAddress = user.addresses[addressIndex];
+    user.addresses.splice(addressIndex, 1);
+
+    // If deleted address was primary, set the first remaining address as primary
+    if (deletedAddress.isDefault && user.addresses.length > 0) {
+      user.addresses[0].isDefault = true;
+      user.primaryAddressId = user.addresses[0].id;
+    } else if (user.addresses.length === 0) {
+      user.primaryAddressId = null;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Address deleted successfully!',
+      addresses: user.addresses,
+      primaryAddressId: user.primaryAddressId
+    });
+  } catch (error) {
+    console.error('Delete address error:', error);
+    await logErrorToDatabase({
+      errorType: 'Delete Address Error',
+      ...getErrorDetails(error, null, {
+        userId: req?.params?.userId || null,
+        severity: 'medium'
+      })
+    });
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Update Profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name, phone, profileImage } = req.body;
+
+    // Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Update only provided fields
+    if (name !== undefined) user.name = name;
+    if (phone !== undefined) user.phone = phone;
+    if (profileImage !== undefined) user.profileImage = profileImage;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully!',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        profileImage: user.profileImage,
+        addresses: user.addresses || [],
+        primaryAddressId: user.primaryAddressId
+      }
+    });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    await logErrorToDatabase({
+      errorType: 'Update Profile Error',
+      ...getErrorDetails(error, null, {
+        userId: req?.params?.userId || null,
+        severity: 'medium'
+      })
+    });
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// JWT Verification Middleware
+exports.verifyToken = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-env');
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ success: false, message: 'Token expired' });
+    }
+    res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+}
+
+// Get Current User
+exports.getCurrentUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        profileImage: user.profileImage,
+        addresses: user.addresses || [],
+        primaryAddressId: user.primaryAddressId
+      }
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
 
