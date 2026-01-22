@@ -10,7 +10,7 @@ var mongo = require("./connection");
 // const Order = require('./models/Order');
 const app = express();
 
-var whitelist = ['http://localhost:3001','http://localhost:3000','http://localhost:5001','http://localhost:5000'];
+var whitelist = ['http://localhost:3001','http://localhost:3000','http://localhost:5001','http://localhost:5000', 'http://localhost:5173','https://your-app.vercel.app'];
 const corsOpts = {
  //origin: true,
   origin: whitelist,
@@ -31,6 +31,7 @@ optionsSuccessStatus:200,
 
 
 app.use(cors(corsOpts));
+app.use(cookieParser());
 
 // Increase payload limit for image uploads
 app.use(express.json({ limit: '50mb' }));

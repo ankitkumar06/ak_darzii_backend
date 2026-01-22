@@ -59,6 +59,14 @@ exports.signup = async(req,res,next)=>{
     // Generate JWT token
     const token = generateToken(user._id);
 
+    // Set token as httpOnly cookie
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
     res.status(201).json({
       success: true,
       message: 'Account created successfully!',
@@ -112,6 +120,14 @@ exports.signin = async(req,res,next)=>{
     // Generate JWT token
     const token = generateToken(user._id);
 
+    // Set token as httpOnly cookie
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
     res.status(200).json({
       success: true,
       message: 'Logged in successfully!',
@@ -135,6 +151,26 @@ exports.signin = async(req,res,next)=>{
         severity: 'high'
       })
     });
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+// Logout
+exports.logout = async (req, res) => {
+  try {
+    // Clear the authToken cookie
+    res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully!'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 }
@@ -594,7 +630,8 @@ exports.updateProfile = async (req, res) => {
 // JWT Verification Middleware
 exports.verifyToken = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    // Get token from Authorization header or cookie
+    let token = req.headers.authorization?.split(' ')[1] || req.cookies.authToken;
 
     if (!token) {
       return res.status(401).json({ success: false, message: 'No token provided' });
