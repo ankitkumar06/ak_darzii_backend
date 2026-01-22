@@ -10,7 +10,7 @@ var mongo = require("./connection");
 // const Order = require('./models/Order');
 const app = express();
 
-var whitelist = ['http://localhost:3001','http://localhost:3000','http://localhost:5001','http://localhost:5000', 'http://localhost:5173','https://your-app.vercel.app'];
+var whitelist = ['http://localhost:3001','http://localhost:3000','http://localhost:5001','http://localhost:5000', 'http://localhost:5173','https://your-app.vercel.app','https://ak-darzii-frontend.vercel.app/'];
 const corsOpts = {
  //origin: true,
   origin: whitelist,
