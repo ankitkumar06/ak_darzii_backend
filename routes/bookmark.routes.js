@@ -1,12 +1,23 @@
 const route = require("express").Router()
 const Bookmark = require("../models/Bookmark")
 const userAuthModule = require("../module/userAuthModule")
+const jwt = require('jsonwebtoken');
 
 // Add bookmark
-route.post('/add', userAuthModule.verifyToken, async (req, res) => {
+// route.post('/add', userAuthModule.verifyToken, async (req, res) => {
+route.post('/add', async (req, res) => {
   try {
     const { productId, productName, productPrice, productEmoji, productCategory } = req.body
-    const userId = req.userId
+   
+    // Get token from Authorization header or cookie
+        let token = req.headers.authorization?.split(' ')[1] || req.cookies?.authToken;
+    
+        if (!token) {
+          return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+    
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-env');
+        const userId = decoded.id;
 
     // Check if bookmark already exists
     const existingBookmark = await Bookmark.findOne({ userId, productId })
@@ -32,10 +43,19 @@ route.post('/add', userAuthModule.verifyToken, async (req, res) => {
 })
 
 // Remove bookmark
-route.delete('/remove/:productId', userAuthModule.verifyToken, async (req, res) => {
+// route.delete('/remove/:productId', userAuthModule.verifyToken, async (req, res) => {
+route.delete('/remove/:productId',  async (req, res) => {
   try {
     const { productId } = req.params
-    const userId = req.userId
+    // Get token from Authorization header or cookie
+        let token = req.headers.authorization?.split(' ')[1] || req.cookies?.authToken;
+    
+        if (!token) {
+          return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+    
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-env');
+        const userId = decoded.id;
 
     const result = await Bookmark.findOneAndDelete({ userId, productId })
 
@@ -51,9 +71,18 @@ route.delete('/remove/:productId', userAuthModule.verifyToken, async (req, res) 
 })
 
 // Get all bookmarks for a user
-route.get('/user/:userId', userAuthModule.verifyToken, async (req, res) => {
+// route.get('/user/:userId', userAuthModule.verifyToken, async (req, res) => {
+route.get('/user/:userId', async (req, res) => {
   try {
-    const userId = req.userId
+    // Get token from Authorization header or cookie
+        let token = req.headers.authorization?.split(' ')[1] || req.cookies?.authToken;
+    
+        if (!token) {
+          return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+    
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-env');
+        const userId = decoded.id;
 
     const bookmarks = await Bookmark.find({ userId }).sort({ createdAt: -1 })
 

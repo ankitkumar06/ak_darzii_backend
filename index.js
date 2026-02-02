@@ -43,9 +43,11 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
  var productRouter = require('./routes/product.routes');
  var authRouter = require('./routes/auth.routes');
  var bookmarkRouter = require('./routes/bookmark.routes');
+ var ratingRouter = require('./routes/rating.routes');
 
  app.use('/auth',authRouter);
  app.use('/products',productRouter);
  app.use('/bookmark',bookmarkRouter);
+ app.use('/rating',ratingRouter);
 
 

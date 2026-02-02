@@ -10,13 +10,14 @@ route.post('/signin',userAuthModule.signin);
 route.post('/logout',userAuthModule.logout);
 route.post('/forgot-password',userAuthModule.forgotPassword);
 route.post('/reset-password/:token',userAuthModule.resetPassword);
-route.get('/verify-reset-token/:token',userAuthModule.verifyResetToken);
+route.post('/verify-reset-token/:token',userAuthModule.verifyResetToken);
 
 // Protected route - Get current user
-route.get('/me', userAuthModule.verifyToken, userAuthModule.getCurrentUser);
+// route.post('/me', userAuthModule.verifyToken, userAuthModule.getCurrentUser);
+route.post('/me',  userAuthModule.getCurrentUser);
 
 // User profile routes
-route.get('/profile/:userId', userAuthModule.getUserProfile);
+route.post('/profile/:userId', userAuthModule.getUserProfile);
 route.post('/update-profile/:userId', userAuthModule.updateProfile);
 
 // Address management routes

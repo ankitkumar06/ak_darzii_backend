@@ -51,7 +51,8 @@ exports.signup = async(req,res,next)=>{
       name,
       phone,
       email: email.toLowerCase(),
-      password: hashedPassword
+      password: hashedPassword,
+      lastLogin: new Date()
     });
 
     await user.save();
@@ -64,7 +65,8 @@ exports.signup = async(req,res,next)=>{
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/' // Ensure cookie is sent for all paths
     });
 
     res.status(201).json({
@@ -117,6 +119,10 @@ exports.signin = async(req,res,next)=>{
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
+    // Update lastLogin timestamp
+    user.lastLogin = new Date();
+    await user.save();
+
     // Generate JWT token
     const token = generateToken(user._id);
 
@@ -125,7 +131,8 @@ exports.signin = async(req,res,next)=>{
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/' // Ensure cookie is sent for all paths
     });
 
     res.status(200).json({
@@ -162,7 +169,8 @@ exports.logout = async (req, res) => {
     res.clearCookie('authToken', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax'
+      sameSite: 'lax',
+      path: '/' // Must match the path used when setting the cookie
     });
 
     res.status(200).json({
@@ -628,7 +636,7 @@ exports.updateProfile = async (req, res) => {
 }
 
 // JWT Verification Middleware
-exports.verifyToken = (req, res, next) => {
+exports.verifyToken = async (req, res, next) => {
   try {
     // Get token from Authorization header or cookie
     let token = req.headers.authorization?.split(' ')[1] || req.cookies.authToken;
@@ -638,7 +646,12 @@ exports.verifyToken = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-env');
-    req.userId = decoded.id;
+    const userId = decoded.id;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid token - user not found' });
+    }
+   
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -650,9 +663,18 @@ exports.verifyToken = (req, res, next) => {
 
 // Get Current User
 exports.getCurrentUser = async (req, res) => {
+  console.log(req.cookies.authToken)
   try {
-    const user = await User.findById(req.userId);
+    let token = req.headers.authorization?.split(' ')[1] || req.cookies.authToken;
 
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'No token provided' });
+    }
+     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-env');
+    const userId = decoded.id;
+    const user = await User.findById(userId);
+
+console.log("Current User ID:", userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
