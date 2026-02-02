@@ -63,7 +63,8 @@ exports.signup = async(req,res,next)=>{
     // Set token as httpOnly cookie
     res.cookie('authToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // secure: process.env.NODE_ENV === 'production',
+      secure:true,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/' // Ensure cookie is sent for all paths
@@ -129,7 +130,8 @@ exports.signin = async(req,res,next)=>{
     // Set token as httpOnly cookie
     res.cookie('authToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // secure: process.env.NODE_ENV === 'production',
+      secure:true,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/' // Ensure cookie is sent for all paths
