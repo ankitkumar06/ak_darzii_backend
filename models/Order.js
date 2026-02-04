@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   items: [{
     productId: Number,
     name: String,
@@ -11,6 +12,7 @@ const orderSchema = new mongoose.Schema({
   shipping: Number,
   tax: Number,
   total: Number,
+  status: { type: String, enum: ['pending', 'cancelled', 'success'], default: 'pending' },
   customer: {
     firstName: String,
     lastName: String,

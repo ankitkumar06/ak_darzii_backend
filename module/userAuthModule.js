@@ -655,7 +655,11 @@ exports.verifyToken = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid token - user not found' });
     }
-   
+
+    // Attach user info to request for downstream handlers
+    req.userId = userId;
+    req.user = user;
+
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
